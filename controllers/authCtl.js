@@ -5,17 +5,37 @@ require("dotenv").config();
 
 const Account = require("../models/Account");
 const Token = require("../models/Token");
+const createMailTransporter = () => require("../utils/mailer");
+
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587 (STARTTLS) hoặc 465
+const is465 = SMTP_PORT === 465;
+
+const transporter = nodemailer.createTransport({
+   host: SMTP_HOST,
+   port: SMTP_PORT,
+   secure: is465, // 465 -> true, 587 -> false
+   auth: {
+      user: process.env.SMTP_USER, // vd: you@gmail.com
+      pass: process.env.APP_PASSWORD_GMAIL, // App Password 16 ký tự
+   },
+   connectionTimeout: 10000, // 10s
+   socketTimeout: 10000, // 10s
+   logger: true,
+   debug: true,
+   tls: { minVersion: "TLSv1.2" },
+});
 
 // Cấu hình SMTP transporter
-const createMailTransporter = () => {
-   return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-         user: "hungduongg2909@gmail.com",
-         pass: process.env.APP_PASSWORD_GMAIL,
-      },
-   });
-};
+// const createMailTransporter = () => {
+//    return nodemailer.createTransport({
+//       service: "gmail",
+//       auth: {
+//          user: "hungduongg2909@gmail.com",
+//          pass: process.env.APP_PASSWORD_GMAIL,
+//       },
+//    });
+// };
 
 // Hàm tạo token ngẫu nhiên
 const generateToken = () => {
@@ -51,7 +71,7 @@ const getDomain = (req) => {
          fPort && !fHost.includes(":") ? `${fHost}:${fPort}` : fHost;
       return `${(fProto || "http").trim()}://${hostWithPort}`;
    }
-   
+
    // Nếu không có, tạo từ request headers
    const protocol = req.get("X-Forwarded-Proto") || req.protocol || "https";
    const host = req.get("host");
@@ -286,35 +306,53 @@ exports.forgotPasswordCtl = async (req, res) => {
       const resetPasswordUrl = `${domain}/reset-password?token=${token}`;
 
       // Cấu hình email
-      const transporter = createMailTransporter();
+      const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+      const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587=STARTTLS, 465=SMTPS
+      const SMTP_USER = process.env.SMTP_USER || "hungduongg2909@gmail.com";
+      const SMTP_PASS = process.env.SMTP_PASS || process.env.APP_PASSWORD_GMAIL; // fallback cho biến cũ
+      const IS_SECURE = SMTP_PORT === 465;
+
+      const transporter = nodemailer.createTransport({
+         host: SMTP_HOST,
+         port: SMTP_PORT,
+         secure: IS_SECURE,
+         auth: { user: SMTP_USER, pass: SMTP_PASS },
+         connectionTimeout: 10000, // tránh treo vô hạn
+         socketTimeout: 10000,
+         logger: process.env.NODE_ENV !== "production",
+         debug: process.env.NODE_ENV !== "production",
+         tls: { minVersion: "TLSv1.2" },
+      });
+
       const mailOptions = {
          from: {
             name: "No-reply Forgot Password Embroidery",
-            address: "hungduongg2909@gmail.com",
+            // Gmail thường yêu cầu from khớp user (hoặc alias đã xác minh)
+            address: process.env.FROM_EMAIL || SMTP_USER,
          },
          to: email,
          subject: "Đặt lại mật khẩu - Embroidery",
          html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333; text-align: center;">Đặt lại mật khẩu</h2>
-          <p>Xin chào,</p>
-          <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản Embroidery của mình.</p>
-          <p>Vui lòng nhấp vào link bên dưới để đặt lại mật khẩu:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${resetPasswordUrl}" 
-               style="background-color: #007bff; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Đặt lại mật khẩu
-            </a>
-          </div>
-          <p><strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong 15 phút.</p>
-          <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
-          <hr style="margin: 20px 0;">
-          <p style="font-size: 12px; color: #666; text-align: center;">
-            Email này được gửi tự động, vui lòng không trả lời.
-          </p>
-        </div>
-      `,
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                     <h2 style="color: #333; text-align: center;">Đặt lại mật khẩu</h2>
+                     <p>Xin chào,</p>
+                     <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản Embroidery của mình.</p>
+                     <p>Vui lòng nhấp vào link bên dưới để đặt lại mật khẩu:</p>
+                     <div style="text-align: center; margin: 20px 0;">
+                     <a href="${resetPasswordUrl}"
+                        style="background-color: #007bff; color: white; padding: 12px 24px;
+                                 text-decoration: none; border-radius: 5px; display: inline-block;">
+                        Đặt lại mật khẩu
+                     </a>
+                     </div>
+                     <p><strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong 15 phút.</p>
+                     <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+                     <hr style="margin: 20px 0;">
+                     <p style="font-size: 12px; color: #666; text-align: center;">
+                     Email này được gửi tự động, vui lòng không trả lời.
+                     </p>
+                  </div>
+               `,
       };
 
       // Gửi email
