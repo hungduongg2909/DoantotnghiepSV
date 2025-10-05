@@ -306,18 +306,18 @@ exports.forgotPasswordCtl = async (req, res) => {
       const resetPasswordUrl = `${domain}/reset-password?token=${token}`;
 
       // Cấu hình email
-      const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+      const SMTP_HOST = process.env.SMTP_HOST || "smtp.sendgrid.net";
       const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587=STARTTLS, 465=SMTPS
-      const SMTP_USER = process.env.SMTP_USER || "hungduongg2909@gmail.com";
-      const SMTP_PASS = process.env.SMTP_PASS || process.env.APP_PASSWORD_GMAIL; // fallback cho biến cũ
+      const SMTP_USER = process.env.SMTP_USER || "apikey"; // SendGrid yêu cầu 'apikey'
+      const SMTP_PASS = process.env.SMTP_PASS; // API key 'SG....'
       const IS_SECURE = SMTP_PORT === 465;
 
       const transporter = nodemailer.createTransport({
          host: SMTP_HOST,
          port: SMTP_PORT,
-         secure: IS_SECURE,
+         secure: IS_SECURE, // 465 -> true, 587 -> false
          auth: { user: SMTP_USER, pass: SMTP_PASS },
-         connectionTimeout: 10000, // tránh treo vô hạn
+         connectionTimeout: 10000, // tránh treo
          socketTimeout: 10000,
          logger: process.env.NODE_ENV !== "production",
          debug: process.env.NODE_ENV !== "production",
@@ -327,8 +327,7 @@ exports.forgotPasswordCtl = async (req, res) => {
       const mailOptions = {
          from: {
             name: "No-reply Forgot Password Embroidery",
-            // Gmail thường yêu cầu from khớp user (hoặc alias đã xác minh)
-            address: process.env.FROM_EMAIL || SMTP_USER,
+            address: process.env.FROM_EMAIL || "noreply@yourdomain.com",
          },
          to: email,
          subject: "Đặt lại mật khẩu - Embroidery",
