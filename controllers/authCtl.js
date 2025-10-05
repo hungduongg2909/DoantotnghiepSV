@@ -5,26 +5,26 @@ require("dotenv").config();
 
 const Account = require("../models/Account");
 const Token = require("../models/Token");
-const createMailTransporter = () => require("../utils/mailer");
+// const createMailTransporter = () => require("../utils/mailer");
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587 (STARTTLS) hoặc 465
-const is465 = SMTP_PORT === 465;
+// const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+// const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587 (STARTTLS) hoặc 465
+// const is465 = SMTP_PORT === 465;
 
-const transporter = nodemailer.createTransport({
-   host: SMTP_HOST,
-   port: SMTP_PORT,
-   secure: is465, // 465 -> true, 587 -> false
-   auth: {
-      user: process.env.SMTP_USER, // vd: you@gmail.com
-      pass: process.env.APP_PASSWORD_GMAIL, // App Password 16 ký tự
-   },
-   connectionTimeout: 10000, // 10s
-   socketTimeout: 10000, // 10s
-   logger: true,
-   debug: true,
-   tls: { minVersion: "TLSv1.2" },
-});
+// const transporter = nodemailer.createTransport({
+//    host: SMTP_HOST,
+//    port: SMTP_PORT,
+//    secure: is465, // 465 -> true, 587 -> false
+//    auth: {
+//       user: process.env.SMTP_USER, // vd: you@gmail.com
+//       pass: process.env.APP_PASSWORD_GMAIL, // App Password 16 ký tự
+//    },
+//    connectionTimeout: 10000, // 10s
+//    socketTimeout: 10000, // 10s
+//    logger: true,
+//    debug: true,
+//    tls: { minVersion: "TLSv1.2" },
+// });
 
 // Cấu hình SMTP transporter
 // const createMailTransporter = () => {
