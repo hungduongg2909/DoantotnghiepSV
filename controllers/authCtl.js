@@ -3,12 +3,16 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 require("dotenv").config();
 const sgMail = require("@sendgrid/mail");
+const axios = require("axios");
 
 const Account = require("../models/Account");
 const Token = require("../models/Token");
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-console.log("SENDGRID_API_KEY:", (process.env.SENDGRID_API_KEY || "").trim().length);
+console.log(
+   "SENDGRID_API_KEY:",
+   (process.env.SENDGRID_API_KEY || "").trim().length
+);
 
 // const createMailTransporter = () => require("../utils/mailer");
 
@@ -311,35 +315,72 @@ exports.forgotPasswordCtl = async (req, res) => {
       const resetPasswordUrl = `${domain}/reset-password?token=${token}`;
 
       // Cấu hình email
-      const mailOptions = {
-         to: email,
-         from: process.env.FROM_EMAIL || "noreply@yourdomain.com",
+      const fromName = process.env.FROM_NAME || "Embroidery";
+      const fromAddress =
+         process.env.FROM_ADDRESS || "hungduongg2909@gmail.com";
+
+      // HTML giữ nguyên như bạn đang có
+      const mailHtml = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                           <h2 style="color: #333; text-align: center;">Đặt lại mật khẩu</h2>
+                           <p>Xin chào,</p>
+                           <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản Embroidery của mình.</p>
+                           <p>Vui lòng nhấp vào link bên dưới để đặt lại mật khẩu:</p>
+                           <div style="text-align: center; margin: 20px 0;">
+                              <a href="${resetPasswordUrl}"
+                                 style="background-color: #007bff; color: white; padding: 12px 24px;
+                                       text-decoration: none; border-radius: 5px; display: inline-block;">
+                              Đặt lại mật khẩu
+                              </a>
+                           </div>
+                           <p><strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong 15 phút.</p>
+                           <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+                           <hr style="margin: 20px 0;">
+                           <p style="font-size: 12px; color: #666; text-align: center;">
+                              Email này được gửi tự động, vui lòng không trả lời.
+                           </p>
+                        </div>
+                        `;
+
+      const brevoPayload = {
+         sender: { name: fromName, email: fromAddress },
+         to: [{ email }],
          subject: "Đặt lại mật khẩu - Embroidery",
-         html: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                     <h2 style="color: #333; text-align: center;">Đặt lại mật khẩu</h2>
-                     <p>Xin chào,</p>
-                     <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản Embroidery của mình.</p>
-                     <p>Vui lòng nhấp vào link bên dưới để đặt lại mật khẩu:</p>
-                     <div style="text-align: center; margin: 20px 0;">
-                     <a href="${resetPasswordUrl}"
-                        style="background-color: #007bff; color: white; padding: 12px 24px;
-                                 text-decoration: none; border-radius: 5px; display: inline-block;">
-                        Đặt lại mật khẩu
-                     </a>
-                     </div>
-                     <p><strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong 15 phút.</p>
-                     <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
-                     <hr style="margin: 20px 0;">
-                     <p style="font-size: 12px; color: #666; text-align: center;">
-                     Email này được gửi tự động, vui lòng không trả lời.
-                     </p>
-                  </div>
-               `,
+         htmlContent: mailHtml,
       };
 
       // Gửi email
-      await sgMail.send(mailOptions);
+      try {
+         const apiKey = (process.env.BREVO_API_KEY || "").trim();
+         if (!apiKey) {
+            console.error("[Brevo] Missing BREVO_API_KEY env");
+            return res.status(500).json({
+               success: false,
+               message: "Email service is not configured",
+            });
+         }
+
+         await axios.post("https://api.brevo.com/v3/smtp/email", brevoPayload, {
+            headers: {
+               "api-key": apiKey,
+               "Content-Type": "application/json",
+               Accept: "application/json",
+            },
+            timeout: 10000,
+         });
+      } catch (e) {
+         // log chi tiết để biết vì sao fail (invalid sender, key sai...)
+         const data = e?.response?.data;
+         console.error(
+            "[Brevo] send error:",
+            e?.response?.status,
+            data || e.message
+         );
+         return res.status(500).json({
+            success: false,
+            message: "Email service unavailable",
+         });
+      }
 
       res.status(200).json({
          success: true,
