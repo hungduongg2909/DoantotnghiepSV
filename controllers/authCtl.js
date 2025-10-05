@@ -8,7 +8,6 @@ const Account = require("../models/Account");
 const Token = require("../models/Token");
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 // const createMailTransporter = () => require("../utils/mailer");
 
 // const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -310,9 +309,30 @@ exports.forgotPasswordCtl = async (req, res) => {
       const resetPasswordUrl = `${domain}/reset-password?token=${token}`;
 
       // Cấu hình email
+      const SMTP_HOST = process.env.SMTP_HOST || "smtp.sendgrid.net";
+      const SMTP_PORT = Number(process.env.SMTP_PORT || 587); // 587=STARTTLS, 465=SMTPS
+      const SMTP_USER = process.env.SMTP_USER || "apikey"; // SendGrid yêu cầu 'apikey'
+      const SMTP_PASS = process.env.SMTP_PASS; // API key 'SG....'
+      const IS_SECURE = SMTP_PORT === 465;
+
+      const transporter = nodemailer.createTransport({
+         host: SMTP_HOST,
+         port: SMTP_PORT,
+         secure: IS_SECURE, // 465 -> true, 587 -> false
+         auth: { user: SMTP_USER, pass: SMTP_PASS },
+         connectionTimeout: 10000, // tránh treo
+         socketTimeout: 10000,
+         logger: process.env.NODE_ENV !== "production",
+         debug: process.env.NODE_ENV !== "production",
+         tls: { minVersion: "TLSv1.2" },
+      });
+
       const mailOptions = {
+         from: {
+            name: "No-reply Forgot Password Embroidery",
+            address: process.env.FROM_EMAIL || "noreply@yourdomain.com",
+         },
          to: email,
-         from: process.env.FROM_EMAIL || "noreply@yourdomain.com",
          subject: "Đặt lại mật khẩu - Embroidery",
          html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -338,7 +358,7 @@ exports.forgotPasswordCtl = async (req, res) => {
       };
 
       // Gửi email
-      await sgMail.send(mailOptions);
+      await transporter.sendMail(mailOptions);
 
       res.status(200).json({
          success: true,
