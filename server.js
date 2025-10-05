@@ -42,6 +42,7 @@ mongoose
    .catch((err) => console.error("MongoDB connection error:", err));
 
 // Session config
+app.set("trust proxy", 1);
 app.use(
    session({
       secret: process.env.SECRET,
