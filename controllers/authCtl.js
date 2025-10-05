@@ -8,6 +8,7 @@ const Account = require("../models/Account");
 const Token = require("../models/Token");
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+console.log("SENDGRID_API_KEY:", (process.env.SENDGRID_API_KEY || "").trim().length);
 
 // const createMailTransporter = () => require("../utils/mailer");
 
